@@ -1,182 +1,224 @@
-## v2ray-heroku
-[![](https://www.herokucdn.com/deploy/button.png)](https://heroku.com/deploy?template=https://github.com/espkami/v2-kuyuansu4.git)
+# v2ray-heroku
 
-### heroku上部署v2ray
-- [x] 支持VMess和VLESS两种协议
-- [x] 支持自定义websocket路径
-- [x] 伪装首页（3D元素周期表）
-- [x] HTML5测速
-- [x] 使用v2ray最新版构建
+> ~~貌似新建的app有些需要科学访问~~，如果需要，请使用cloudflare worker CDN 或者 cloudflare tunnel 套一层。
 
-请求`/`，返回3D元素周期表
+> 切换到最新的 VLESS 协议。具体客户端配置请看 config 章节。
 
-![image](https://cdn.jsdelivr.net/gh/DaoChen6/Heroku-v2ray/doc/1.png)
+> v2ray-heroku 是我为了体验 github action 的产物，也是我的主力 backup，我会日常维护它。加入或者修改一些我认为好的配置。但这一般会导致客户端配置需要些许修改。 不过具体配置都会体现在 [详细 VLESS websocket 客户端配置](#vless-websocket-客户端配置)
 
-请求`/speedtest/`，html5-speedtest测速页面
+> 有问题请开 issue 或者 discussions。
 
-![image](https://cdn.jsdelivr.net/gh/DaoChen6/Heroku-v2ray/doc/2.png)
-
-请求`/test/`，文件下载速度测试
-
-![image](https://cdn.jsdelivr.net/gh/DaoChen6/Heroku-v2ray/doc/3.png)
-
-请求`/ray`（可配置）v2ray websocket路径
+## **请大家不要跑速度测试，请用 youtube 测试。**
 
 
-### 环境变量说明
+## Change log
 
-|  名称 | 值  | 说明  |
-| ------------ | ------------ | ------------ |
-|  PROTOCOL |  vmess<br>vless（可选） |  协议：nginx+vmess+ws+tls或是nginx+vless+ws+tls |
-|  UUID |  [uuid在线生成器](https://www.uuidgenerator.net "uuid在线生成器") | 用户主ID  |
-|  WS_PATH | 默认为`/ray` |  路径，请勿使用`/speedtest`，`/`，`/test` 等已经被占用的请求路径 |
+应需求，加上首页伪装，如果你有想法，请自己把想要的html放入到 项目html 文件，然后后续 action 部署会自动拿到。
 
-### 进阶
-heorku可以绑卡（应用一直在线，不扣费），绑定域名，套cf，[uptimerobot](https://uptimerobot.com/) 定时访问防止休眠（只监控CF Workers反代地址好了，不然几个账户一起监控没几天就把时间耗完了）
+## !!!!!!! **对于老用户是 breaking change, 对ws 新加了path, 请注意查看客户端配置**
 
-### CloudFlare Workers反代代码（可分别用两个账号的应用程序名（`PROTOCOL`、`UUID`、`WS_PATH`保持一致），单双号天分别执行，那一个月就有550+550小时）
-<details>
-<summary>CloudFlare Workers单账户反代代码</summary>
+## !!!!!!! **对于老用户是 breaking change, 对ws 新加了path, 请注意查看客户端配置**
 
-```js
-addEventListener(
-    "fetch",event => {
-        let url=new URL(event.request.url);
-        url.hostname="appname.herokuapp.com";
-        let request=new Request(url,event.request);
-        event. respondWith(
-            fetch(request)
-        )
-    }
-)
+## !!!!!!! **对于老用户是 breaking change, 对ws 新加了path, 请注意查看客户端配置**
+
+首先查看别人的 [youtube 教程](https://www.youtube.com/watch?v=xHZyDsFYdvA)，了解怎么配置 v2ray-heroku。**本项目使用最新 VLESS 协议，请在客户端配置选择 VLESS**。  
+[详细 VLESS websocket 客户端配置](#vless-websocket-客户端配置) 。
+
+如果你还想自动化你的 heroku，请查看下面的教程。
+
+本项目是包含，
+
+- 一键部署 V2ray 到 heroku。
+- 利用 Github action 实现 [重新部署](#重新部署)/[停止](#停止)/[启动](#启动)/[删除](#删除)。
+- 支持 heroku 的区域（us 和 eu）
+- **支持[多app和多账户](#使用-environments-实现-多账户多app-secrets-管理) [重新部署](#重新部署)/[停止](#停止)/[启动](#启动)/[删除](#删除)。**
+
+- 利用 cloudflare CDN 进行加速。
+- **利用 [cloudflare tunnel](https://www.cloudflare.com/products/tunnel/) 进行加速。**
+
+```text
+项目Dockerfile是基于V2fly 官方镜像制作。仅仅增加生产配置文件的脚本。重新部署就可以更新到最新的v2ray。
+基于官方镜像，这也是v2fly 推荐的做法。
 ```
-</details>
 
-<details>
-<summary>CloudFlare Workers单双日轮换反代代码</summary>
+> 保持安全最简单的方式就是，保持软件更新。
 
-```js
-const SingleDay = 'app0.herokuapp.com'
-const DoubleDay = 'app1.herokuapp.com'
-addEventListener(
-    "fetch",event => {
-    
-        let nd = new Date();
-        if (nd.getDate()%2) {
-            host = SingleDay
-        } else {
-            host = DoubleDay
-        }
-        
-        let url=new URL(event.request.url);
-        url.hostname=host;
-        let request=new Request(url,event.request);
-        event. respondWith(
-            fetch(request)
-        )
-    }
-)
+## 一键部署
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
+> 貌似在这个 repo 下 点击 一键部署貌似 heroku 提示违反某些原则，但是action 正常工作！！建议 fork 时候，项目名字，尽量不要带有 v2ray 关键字。
+
+> 如果被heroku 提示错误，请用 github action 来部署。
+
+> 部署成功后，可以先用浏览器访问 ***.herokuapp.com， 查看页面是否能正常访问。
+
+## Github Actions 管理
+
+请 Fork 本项目到自己的账户下。 Actions 需要以下 Secrets 才能正常工作，这些 Secrets 会被 workflow 中的 [akhileshns/heroku-deploy](https://github.com/AkhileshNS/heroku-deploy) 使用。
+
+具体实现细节，请查看 [workflow 配置文件](./.github/workflows/main.yml). 如何配置， 请查看，[Github Secrets](#github-secrets)
+
+| Name              | Description                                |
+| ----------------- | ------------------------------------------ |
+| APP_NAME          | 就是你 heroku 项目的名字. 如果你是第一次创建APP，**请确保名字是唯一的**|
+| EMAIL             | heroku 账户的 email                      |
+| HEROKU_API_KEY    | heroku API key，在 account 设置下可以找到 |
+| HEROKU_V2RAY_UUID | V2rayUUID                                |
+| HEROKU_TUNNEL_TOKEN | **可选** cloudflare tunnel 的 token    |
+
+> 这样Token一定必须是大写。。请在 heroku 网站创建app，来确保项目的名字的唯一性。
+
+HEROKU_TUNNEL_TOKEN 是可选项，可以忽略. 详细说明，请查看章节 《建立-cloudflare-tunnel-（可选）》
+
+> 请务必生成新的 UUID。使用已有的 UUID 会使自己 V2ray 暴露在危险之下。
+
+
+PowerShell:
+
+```powershell
+PS C:\Users\> New-Guid
 ```
-</details>
 
-<details>
-<summary>CloudFlare Workers每五天轮换一遍式反代代码</summary>
+Shell:
 
-```js
-const Day0 = 'app0.herokuapp.com'
-const Day1 = 'app1.herokuapp.com'
-const Day2 = 'app2.herokuapp.com'
-const Day3 = 'app3.herokuapp.com'
-const Day4 = 'app4.herokuapp.com'
-addEventListener(
-    "fetch",event => {
-    
-        let nd = new Date();
-        let day = nd.getDate() % 5;
-        if (day === 0) {
-            host = Day0
-        } else if (day === 1) {
-            host = Day1
-        } else if (day === 2) {
-            host = Day2
-        } else if (day === 3){
-            host = Day3
-        } else if (day === 4){
-            host = Day4
-        } else {
-            host = Day1
-        }
-        
-        let url=new URL(event.request.url);
-        url.hostname=host;
-        let request=new Request(url,event.request);
-        event. respondWith(
-            fetch(request)
-        )
-    }
-)
+```bash
+xxx@xxx:/mnt/c/Users/$ uuidgen
 ```
-</details>
 
-<details>
-<summary>CloudFlare Workers一周轮换反代代码</summary>
+### Github Secrets
 
-```js
-const Day0 = 'app0.herokuapp.com'
-const Day1 = 'app1.herokuapp.com'
-const Day2 = 'app2.herokuapp.com'
-const Day3 = 'app3.herokuapp.com'
-const Day4 = 'app4.herokuapp.com'
-const Day5 = 'app5.herokuapp.com'
-const Day6 = 'app6.herokuapp.com'
-addEventListener(
-    "fetch",event => {
-    
-        let nd = new Date();
-        let day = nd.getDay();
-        if (day === 0) {
-            host = Day0
-        } else if (day === 1) {
-            host = Day1
-        } else if (day === 2) {
-            host = Day2
-        } else if (day === 3){
-            host = Day3
-        } else if (day === 4) {
-            host = Day4
-        } else if (day === 5) {
-            host = Day5
-        } else if (day === 6) {
-            host = Day6
-        } else {
-            host = Day1
-        }
-        
-        let url=new URL(event.request.url);
-        url.hostname=host;
-        let request=new Request(url,event.request);
-        event. respondWith(
-            fetch(request)
-        )
-    }
-)
+路径
+
+```text
+项目Setting-->Secrets
 ```
-</details>
 
-### 客户端配置
+![Secrets](./readme-data/GithubSecrets.gif)
 
+### Heroku API key
+
+路径
+
+```text
+heroku Account settings-->API key
 ```
-  - name: "yourName"
-    type: vmess
-    server: yourName.workers.dev
-    port: 443
-    uuid: yourUuid
-    alterId: 0
-    cipher: auto
-    udp: true
-    tls: true
-    #skip-cert-verify: true
-    servername: yourName.workers.dev
-    network: ws
-    ws-path: /ray
+
+![Secrets](./readme-data/herokuapikey.gif)
+
+### Github Actions 界面
+
+```text
+Actions
 ```
+
+![Actions](./readme-data/githubactions.gif)
+
+### 重新部署
+
+点击 `Run workflow`, 输入 deploy。 然后就会重新 deploy。
+
+这里可以**选择区域**，但是请确保app没有被创建过。如果要切换区域，请先使用 destroy 删除应用。
+
+![deploy](./readme-data/deploy.png)
+
+### 停止
+
+点击 `Run workflow`, 输入 stop。 然后就会 stop，不在计入小时数。
+![stop](./readme-data/stop.jpg)
+
+### 启动
+
+点击 `Run workflow`, 输入 start。 然后就会启动。
+
+![start](./readme-data/start.jpg)
+
+### 删除
+
+点击 `Run workflow`, 输入 destroy  然后就会删除。
+
+![delete](./readme-data/delete-app.png)
+
+
+## 建立 cloudflare worker （可选）
+
+如果遇到创建的app在正常网络下不能访问，请尝试这个。
+
+可以参考 开头的视频。代码如下。
+
+```javascript
+addEventListener("fetch", (event) => {
+  let url = new URL(event.request.url);
+  url.hostname = "你的heroku的hostname";
+  let request = new Request(url, event.request);
+  event.respondWith(fetch(request));
+});
+```
+
+为 worker 选择速度更快的 IP。
+https://github.com/badafans/better-cloudflare-ip
+
+## 建立 cloudflare tunnel （可选）
+
+项目集成 cloudflare tunnel， 在配置 Secrets `HEROKU_TUNNEL_TOKEN` 之后生效。具体怎么配置，请查看 [cloudflare tunnel](./cloudflared-tunnel.md)。
+
+## 使用 Environments 实现 多账户/多app Secrets 管理
+
+文档介绍： https://docs.github.com/en/actions/deployment/using-environments-for-deployment
+
+### 建立 Environments, 并添加 Secrets
+
+1. 创建 Environments
+![Environments](./readme-data/Environments.png)
+2. 添加 Secrets
+![EnvironmentsSercet](./readme-data/EnvironmentsSercet.png)
+
+### 输入环境名字
+**一定要确保环境名字是对的，要不然就会用主的Secrets。**
+![EnvironmentsDeploy](./readme-data/EnvironmentsDeploy.png)
+
+## VLESS websocket 客户端配置
+
+### JSON
+
+```json
+"outbounds": [
+        {
+            "protocol": "vless",
+            "settings": {
+                "vnext": [
+                    {
+                        "address": "***.herokuapp.com", // heroku app URL 或者 cloudflare worker url/ip
+                        "port": 443,
+                        "users": [
+                            {
+                                "id": "", // 填写你的 UUID
+                                "encryption": "none"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "ws",
+                "wsSettings": {
+                    "path": "/ws"  // 这里是新加的
+                },
+                "security": "tls",
+                "tlsSettings": {
+                    "serverName": "***.herokuapp.com" // heroku app host 或者 cloudflare worker host
+                }
+              }
+          }
+    ]
+```
+
+### v2rayN
+
+path 是 **/ws**
+
+换成 [V2rayN](https://github.com/2dust/v2rayN)
+
+别人的配置教程参考，https://v2raytech.com/v2rayn-config-tutorial/.
+
+![v2rayN](/readme-data/V2rayN.jpg)
